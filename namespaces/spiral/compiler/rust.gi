@@ -101,7 +101,7 @@ Class(RustUnparserBase, Unparser, rec(
     param   := (self,o,i,is) >> Print(o.id),
     var     := (self,o,i,is) >> Print(
         When(
-            o.id in self.fields,
+            When(IsBound(self.fields), o.id in self.fields, false),
             "self.",
             "")
         ,o.id),
@@ -433,10 +433,10 @@ Class(RustUnparserBase, Unparser, rec(
     TVect := (self, t, vars, i, is) >> Print("__m128 ", self.infix(vars, ", ", i+is)),
 
     TComplex := (self, t, vars, i, is) >> Print(
-        When(IsBound(self.opts.TComplexRusttype), self.opts.TComplexRusttype, "Complex<32> "), " ",
+        When(IsBound(self.opts.TComplexRusttype), self.opts.TComplexRusttype, "Complex::<f32> "), " ",
         self.infix(vars, ", ",i+is)),
 
-    T_Complex := (self, t, vars, i, is) >> Print("Complex<32> ", self.declare(t.params[1], vars, i, is)), 
+    T_Complex := (self, t, vars, i, is) >> Print("Complex::<f32> ", self.declare(t.params[1], vars, i, is)), 
 
     T_Real  := (self, t, vars, i, is) >> Print(
         self.infix(vars, ", ",i+is),
@@ -510,13 +510,22 @@ Class(RustUnparserBase, Unparser, rec(
     _restrict := (self, t) >> let(opts := self.opts, rst := Concat(When(IsBound(opts.restrict),
                     opts.restrict(), "restrict"), " "), When(t._restrict, rst, "")),
 
-    TPtr  := (self, t, vars, i, is) >>
-        Print(Cond(not IsBound(t.qualifiers) or t.qualifiers=[], "", Print(self.infix(t.qualifiers, " "), " ")),
-          Cond(vars=[],
-          Print(self.declare(t.t, [], i, is), " *", self._restrict(t)),
-          Print(self.declare(t.t, [], i, is),
-              Print(" *", self._restrict(t) ),
-              self.infix(vars, Concatenation(", *", self._restrict(t)), i+is)))),
+#    TPtr  := (self, t, vars, i, is) >>
+#        Print(Cond(not IsBound(t.qualifiers) or t.qualifiers=[], "", Print(self.infix(t.qualifiers, " "), " ")),
+#          Cond(vars=[],
+#          Print(self.declare(t.t, [], i, is), " *", self._restrict(t)),
+#          Print(self.declare(t.t, [], i, is),
+#              Print(" *", self._restrict(t) ),
+#              self.infix(vars, Concatenation(", *", self._restrict(t)), i+is)))),
+
+    TPtr  := (self, t, vars, i, is) >> Print(
+        self.infix(vars, ", ",i+is),
+        When(Length(vars)=0, "", ": "),
+        "&",
+        When(not IsBound(t.qualifiers) or t.qualifiers=[], "", self.infix(t.qualifiers, " ")),
+        "[",
+        self.(t.t.name)(t.t, [], i, is),
+        "]"),
 
     TSym := (self, t, vars, i, is) >> Print(t.id, " ", self.infix(vars, ", ")),
 
@@ -643,7 +652,16 @@ Class(RustUnparser, RustUnparserBase, rec(
           self(o.cmd,i+is,is),
           Blanks(i), "}\n")),
 
-    program := (self,o,i,is) >> DoForAll(o.cmds, c -> self(c,i,is)),
+    program := meth(self,o,i,is)
+        local empty_struct_decl, icode;
+        if Length(o.cmds)=1 and not ObjId(o.cmds[1])=decl then
+            empty_struct_decl := code.decl([ var.fresh_t("_dumb", TInt) ], o.cmds[1]);
+            icode := code.program([empty_struct_decl]);
+            self(icode,i,is);
+        else
+            DoForAll(o.cmds, c -> self(c,i,is));
+        fi;
+    end,
 
     allocate := (self, o, i, is) >> Print(Blanks(i),
         self(o.loc, i, is), " = (", self.declare(o.exp.t, [],0,0),

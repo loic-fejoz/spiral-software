@@ -235,3 +235,15 @@ RustDefaults := CopyFields(SpiralDefaults, rec(
     XType := XType,
     YType := YType
 ));
+
+CplxRustDefaults := CopyFields(RustDefaults, rec(
+    XType := code.TPtr(code.TComplex),
+    YType := code.TPtr(code.TComplex),
+    dataType := "complex",
+    generateComplexCode := true,
+    c99 := rec(
+        I := "num_complex::Complex::<f32>::i()",
+        re := "creal",
+        im := "cimag"
+    )
+));
