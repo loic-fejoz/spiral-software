@@ -147,6 +147,7 @@ SpiralDefaults := CopyFields(SpiralDefaults, rec(
     TUIntCtype := "unsigned int",
     TULongLongCtype := "unsigned long long",
     TRealCtype := "double",
+    TRealRusttype := "f64",
 
     operations := rec(Print := s -> Print("<Spiral options record>")),
 
@@ -220,3 +221,17 @@ compiler.Unparser.fileinfo := meth(self, opts)
         "*/\n");
     fi;	
 end;
+
+
+XType := code.TArray(code.TReal, 0);
+XType.qualifiers = ["&"];
+YType := code.TArray(code.TReal, 0);
+YType.qualifiers = ["&mut"];
+RustDefaults := CopyFields(SpiralDefaults, rec(
+    unparser := compiler.RustUnparserProg,
+    simpIndicesInside := [],
+    useDeref := false,
+    includes := [],
+    XType := XType,
+    YType := YType
+));

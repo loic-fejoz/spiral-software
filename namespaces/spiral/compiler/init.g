@@ -63,4 +63,4 @@ Include(strategy);
 Include(three_op);
 Include(inttab);
 
-
+Include(rust);
